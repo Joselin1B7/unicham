@@ -1,41 +1,25 @@
 $(document).ready(function() {
-
     $('#btnUpload').click(function(e) {
         e.preventDefault();
-        $('.alert').hide(); // Limpieza rápida de alertas
+        $('.alert').hide();
 
-        const fileData = {
-            title: $('#inputTitle').val().trim(),
-            category: $('#inputCategory').val(),
-            file: $('#inputFile')[0].files[0]
-        };
+        const title = $('#inputTitle').val().trim();
+        const file = $('#inputFile')[0].files[0];
 
-        // Solo procesamos si la validación es exitosa
-        if (validateDocumentFields(fileData)) {
-            uploadDocument(fileData);
+        if (!title) {
+            return $('#titleAlert').text("El título es obligatorio.").show();
         }
+        if (!file) {
+            return $('#fileAlert').text("Selecciona un archivo.").show();
+        }
+
+        uploadFile(title, file);
     });
 
-    function validateDocumentFields(data) {
-        // Retornos tempranos para eliminar la complejidad ciclomática
-        if (!data.title) return showAlert('#titleAlert', "El título es obligatorio.");
-        if (!data.category || data.category === "0") return showAlert('#catAlert', "Selecciona una categoría.");
-        if (!data.file) return showAlert('#fileAlert', "Debes seleccionar un archivo.");
-        
-        return true;
-    }
-
-    function showAlert(selector, mensaje) {
-        $(selector).text(mensaje).show();
-        return false;
-    }
-
-    function uploadDocument(data) {
-        // Usamos FormData para el envío de archivos
+    function uploadFile(title, file) {
         const formData = new FormData();
-        formData.append('title', data.title);
-        formData.append('category', data.category);
-        formData.append('file', data.file);
+        formData.append('title', title);
+        formData.append('file', file);
 
         $.ajax({
             url: '/UniCham/index.php?controller=document&method=upload',
@@ -44,21 +28,12 @@ $(document).ready(function() {
             processData: false,
             contentType: false,
             success: function(res) {
-                handleUploadResponse(res);
+                const icon = res.status == 1 ? 'success' : 'error';
+                Swal.fire(res.status == 1 ? '¡Éxito!' : 'Error', res.message, icon);
             },
             error: function() {
-                Swal.fire('Error', 'Error de conexión con el servidor.', 'error');
+                Swal.fire('Error', 'Fallo en la conexión.', 'error');
             }
         });
-    }
-
-    function handleUploadResponse(res) {
-        // Simplificación de la lógica de respuesta para SonarQube
-        if (res.status == 1) {
-            return Swal.fire('¡Éxito!', 'Documento subido correctamente.', 'success');
-        }
-        
-        const errorMsg = res.message || 'No se pudo subir el archivo.';
-        Swal.fire('Error de carga', errorMsg, 'error');
     }
 });
