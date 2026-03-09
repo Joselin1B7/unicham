@@ -8,37 +8,28 @@ $(document).ready(function() {
             firstname: $('#inputFirstname').val().trim(),
             lastname: $('#inputLastname').val().trim(),
             phone: $('#inputPhone').val().trim(),
-            password: $('#inputPassword').val().trim()
+            password: $('#inputPassword').val().trim(),
+            confirm: $('#inputConfirmPassword').val().trim()
         };
-        const confirm = $('#inputConfirmPassword').val().trim();
 
-        if (validateRegistrationFields(data, confirm)) {
-            processRegistration(data);
+        if (validate(data)) {
+            $.post('/UniCham/index.php?controller=user&method=registro', data, function(res) {
+                const icon = res.status == 1 ? 'success' : 'error';
+                const title = res.status == 1 ? '¡Éxito!' : 'Error';
+                Swal.fire(title, res.message || (res.status == 1 ? 'Cuenta creada.' : 'Error al registrar.'), icon);
+            }, 'json').fail(() => Swal.fire('Error', 'Fallo de conexión.', 'error'));
         }
     });
 
-    function validateRegistrationFields(d, confirm) {
-        if (!d.name) return showErr('#nameAlert', "El nombre es obligatorio.");
-        if (!d.firstname) return showErr('#firstnameAlert', "El primer nombre es obligatorio.");
-        if (!d.lastname) return showErr('#lastnameAlert', "El apellido es obligatorio.");
-        if (!d.phone) return showErr('#phoneAlert', "El teléfono es obligatorio.");
-        if (!d.password) return showErr('#passwordAlert', "La contraseña es obligatoria.");
-        if (d.password !== confirm) return showErr('#confirmPasswordAlert', "Las contraseñas no coinciden.");
+    function validate(d) {
+        if (!d.name || !d.firstname || !d.lastname || !d.phone || !d.password) {
+            Swal.fire('Error', 'Todos los campos son obligatorios', 'warning');
+            return false;
+        }
+        if (d.password !== d.confirm) {
+            $('#confirmPasswordAlert').text("Las contraseñas no coinciden.").show();
+            return false;
+        }
         return true;
-    }
-
-    function showErr(id, msg) {
-        $(id).text(msg).show();
-        return false;
-    }
-
-    function processRegistration(info) {
-        $.post('/UniCham/index.php?controller=user&method=registro', info, function(res) {
-            if (res.status == 1) {
-                return Swal.fire({ title: '¡Registro Exitoso!', text: 'Tu cuenta ha sido creada.', icon: 'success' });
-            }
-            const msg = res.status == 0 ? 'El teléfono ya está registrado.' : 'Error inesperado.';
-            Swal.fire('Error', msg, 'error');
-        }, 'json').fail(() => Swal.fire('Error', 'No se pudo conectar con el servidor.', 'error'));
     }
 });
