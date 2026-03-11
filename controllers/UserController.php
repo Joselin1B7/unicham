@@ -19,8 +19,7 @@ class UserController {
         $talleres = $this->model->getTalleresAlumno($matricula);
         $periodo = $this->model->getPeriodoActual();
 
-        // Delegamos el cálculo a un método privado para no inflar la complejidad de talleres()
-        $metricas = $this->procesarMetricasTalleres($talleres, $periodo);
+        $metricas = $this->calcularMetricasTalleres($talleres, $periodo);
 
         View::render("users/talleresView", array_merge([
             "perfil" => $this->model->getPerfilAlumno($matricula),
@@ -35,8 +34,7 @@ class UserController {
         $matricula = $_SESSION['matricula'];
         $historial = $this->model->getHistorialAlumno($matricula);
         
-        // Delegamos el resumen académico
-        $resumen = $this->calcularResumenAcademico($historial);
+        $resumen = $this->obtenerResumenAcademico($historial);
 
         View::render("users/historialView", [
             "perfil" => $this->model->getPerfilAlumno($matricula),
@@ -54,30 +52,32 @@ class UserController {
         }
     }
 
-    private function procesarMetricasTalleres($talleres, $periodo) {
+    private function calcularMetricasTalleres($talleres, $periodo) {
         $total = 0; $esteCuatri = 0;
-        $ini = $periodo['fecha_inicio'] ?? null;
-        $fin = $periodo['fecha_fin'] ?? null;
+        $fInicio = $periodo['fecha_inicio'] ?? null;
+        $fFin = $periodo['fecha_fin'] ?? null;
 
         foreach ($talleres as $t) {
-            $horas = (int)($t['horas_acumuladas'] ?? 0);
-            $total += $horas;
-            if ($ini && $fin && !empty($t['fecha_inscripcion'])) {
-                $fecha = substr($t['fecha_inscripcion'], 0, 10);
-                if ($fecha >= $ini && $fecha <= $fin) $esteCuatri += $horas;
+            $h = (int)($t['horas_acumuladas'] ?? 0);
+            $total += $h;
+            $fechaI = substr($t['fecha_inscripcion'] ?? '', 0, 10);
+            if ($fInicio && $fFin && $fechaI >= $fInicio && $fechaI <= $fFin) {
+                $esteCuatri += $h;
             }
         }
         return ["horasTotalesAcumuladas" => $total, "horasEsteCuatri" => $esteCuatri, "restantes" => max(0, 150 - $total)];
     }
 
-    private function calcularResumenAcademico($historial) {
+    private function obtenerResumenAcademico($historial) {
         $suma = 0; $conteo = 0; $creditos = 0;
         foreach ($historial as $m) {
             if (is_numeric($m['calificacion'])) {
                 $suma += $m['calificacion'];
                 $conteo++;
             }
-            if ($m['estatus'] === 'Aprobada') $creditos += ($m['creditos'] ?? 0);
+            if (($m['estatus'] ?? '') === 'Aprobada') {
+                $creditos += ($m['creditos'] ?? 0);
+            }
         }
         return ["promedio" => ($conteo > 0) ? round($suma / $conteo, 2) : 0, "creditos" => $creditos];
     }
