@@ -1,31 +1,41 @@
 <?php
-class TeacherModel {
+// Incluimos la clase de conexión para heredar sus métodos seguros
+require_once __DIR__ . '/../db/Conexiondb.php';
+
+class TeacherModel extends Conexiondb {
     private $db;
 
     public function __construct() {
-        $this->db = new PDO(
-            'mysql:host=localhost;dbname=unicham;charset=utf8mb4',
-            'root',
-            ''
-        );
-        $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        /**
+         * LLamamos al método conectardb() de la clase padre.
+         * Esto soluciona el issue de seguridad al no exponer 
+         * 'root' y contraseñas vacías en este archivo.
+         */
+        $this->db = parent::conectardb();
+        parent::setNames();
     }
 
-    public function getProfesorById(int $idProfesor) {
-        $sql = "
-            SELECT 
-                p.id_profesor,
-                p.nombre,
-                p.apellido_paterno,
-                p.apellido_materno,
-                p.telefono,
-                p.correo_institucional
-            FROM profesores p
-            WHERE p.id_profesor = ?
-            LIMIT 1
-        ";
+    /**
+     * Ejemplo de método para obtener datos del profesor
+     * Usando sentencias preparadas para evitar Inyección SQL
+     */
+    public function getPerfilDocente($id_usuario) {
+        $sql = "SELECT * FROM profesores WHERE id_usuario = :id LIMIT 1";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$idProfesor]);
+        $stmt->execute([':id' => $id_usuario]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtener las materias asignadas al profesor
+     */
+    public function getMateriasAsignadas($id_profesor) {
+        $sql = "SELECT m.nombre_materia, c.nombre_carrera 
+                FROM materias m
+                JOIN carreras c ON m.id_carrera = c.id_carrera
+                WHERE m.id_profesor = :id_prof";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([':id_prof' => $id_profesor]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
