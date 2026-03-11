@@ -3,51 +3,38 @@ require_once __DIR__ . '/../utils/View.php';
 require_once __DIR__ . '/../models/AlumnoModel.php';
 
 class LoginController {
-    public function auth() { View::render("Inicio/authView", ["user" => 0]); }
+    
+    public function auth() {
+        View::render("Inicio/authView", ["user" => 0]);
+    }
 
     public function validador() {
         header('Content-Type: application/json');
         $mat = $_POST['matricula'] ?? null;
         $pwd = $_POST['password'] ?? null;
 
-        if (!$mat || !$pwd) return $this->jsonResponse(-1, 'Faltan datos.');
-
-        $alumnoModel = new AlumnoModel();
-        $data = $alumnoModel->getAlumnoByMatricula($mat);
-
-        if (!$data || !password_verify($pwd, $data['password_hash'])) {
-            return $this->jsonResponse(0, 'Matrícula o contraseña incorrectas.');
+        if (!$mat || !$pwd) {
+            return $this->enviarJson(-1, 'Faltan datos.');
         }
 
-        $this->establecerSesion($data);
-        return $this->jsonResponse(1, 'Acceso concedido.', ['redirect_url' => '/UniCham/index.php?controller=user&method=perfil']);
-    }
-
-    public function resetPassword() {
-        header('Content-Type: application/json');
-        $email = $_POST['email'] ?? null;
-        $newPwd = $_POST['new_password'] ?? null;
-
-        if (!$email || !$newPwd) return $this->jsonResponse(-1, 'Faltan datos.');
-
         $model = new AlumnoModel();
-        $alumno = $model->getAlumnoByEmail($email);
+        $user = $model->getAlumnoByMatricula($mat);
 
-        if (!$alumno) return $this->jsonResponse(0, 'El correo no está registrado.');
+        if (!$user || !password_verify($pwd, $user['password_hash'])) {
+            return $this->enviarJson(0, 'Credenciales incorrectas.');
+        }
 
-        $hashed = password_hash($newPwd, PASSWORD_DEFAULT);
-        $status = $model->updatePassword($alumno['id_usuario'], $hashed);
-
-        return $status ? $this->jsonResponse(1, 'Éxito.') : $this->jsonResponse(0, 'Error técnico.');
+        $this->iniciarSesion($user);
+        return $this->enviarJson(1, 'OK', ['redirect_url' => '/UniCham/index.php?controller=user&method=perfil']);
     }
 
-    private function establecerSesion($data) {
+    private function iniciarSesion($data) {
         if (session_status() === PHP_SESSION_NONE) session_start();
         $_SESSION['user_id'] = $data['id_usuario'];
         $_SESSION['matricula'] = $data['matricula'];
     }
 
-    private function jsonResponse($status, $msg, $extra = []) {
+    private function enviarJson($status, $msg, $extra = []) {
         echo json_encode(array_merge(['status' => $status, 'message' => $msg], $extra));
         exit();
     }
